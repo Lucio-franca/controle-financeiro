@@ -1,81 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { getTransacoes, getCategorias, getCaixa } from '../supabaseClient';
+import { getTransacoes } from '../supabaseClient';
 
 function Relatorios() {
   const [transacoes, setTransacoes] = useState([]);
-  const [, setCategorias] = useState([]); // <- CORRIGIDO (não usado no código)
-  const [caixa, setCaixa] = useState({ saldo: 0 });
-  const [filtro, setFiltro] = useState('recente');
+  const [filtroTipo, setFiltroTipo] = useState('todos');
 
   useEffect(() => {
     carregarDados();
-    const intervalo = setInterval(carregarDados, 5000);
-    return () => clearInterval(intervalo);
   }, []);
 
   const carregarDados = async () => {
-    const [trans, cats, caixaData] = await Promise.all([
-      getTransacoes(),
-      getCategorias(),
-      getCaixa()
-    ]);
-
-    setTransacoes(trans.data || []);
-    setCategorias(cats.data || []);
-    setCaixa(caixaData.data || { saldo: 0 });
+    const result = await getTransacoes();
+    setTransacoes(result.data || []);
   };
 
-  const entradas = transacoes.filter(t => t.tipo === 'entrada');
-  const saidas = transacoes.filter(t => t.tipo === 'saida');
+  const transacoesFiltradas =
+    filtroTipo === 'todos'
+      ? transacoes
+      : transacoes.filter(t => t.tipo === filtroTipo);
 
-  const totalEntradas = entradas.reduce((acc, t) => acc + parseFloat(t.valor), 0);
-  const totalSaidas = saidas.reduce((acc, t) => acc + parseFloat(t.valor), 0);
-  const saldoCaixa = parseFloat(caixa.saldo || 0);
+  const totalEntradas = transacoes
+    .filter(t => t.tipo === 'entrada')
+    .reduce((acc, t) => acc + Number(t.valor), 0);
 
-  const transacoesOrdenadas = [...transacoes].sort((a, b) => {
-    const dA = new Date(a.data_transacao);
-    const dB = new Date(b.data_transacao);
-    return filtro === 'antiga' ? dA - dB : dB - dA;
-  });
+  const totalSaidas = transacoes
+    .filter(t => t.tipo === 'saida')
+    .reduce((acc, t) => acc + Number(t.valor), 0);
 
-  const gastosPorCategoria = saidas.reduce((acc, t) => {
-    const nomeCategoria = t.categorias?.nome || 'Sem categoria';
-    const existing = acc.find(a => a.nome === nomeCategoria);
-
-    if (existing) {
-      existing.total += parseFloat(t.valor);
-      existing.qtd += 1;
-    } else {
-      acc.push({ nome: nomeCategoria, total: parseFloat(t.valor), qtd: 1 });
-    }
-
-    return acc;
-  }, []).sort((a, b) => b.total - a.total);
-
-  const entradasPorCategoria = entradas.reduce((acc, t) => {
-    const nomeCategoria = t.categorias?.nome || 'Sem categoria';
-    const existing = acc.find(a => a.nome === nomeCategoria);
-
-    if (existing) {
-      existing.total += parseFloat(t.valor);
-      existing.qtd += 1;
-    } else {
-      acc.push({ nome: nomeCategoria, total: parseFloat(t.valor), qtd: 1 });
-    }
-
-    return acc;
-  }, []).sort((a, b) => b.total - a.total);
+  const saldo = totalEntradas - totalSaidas;
 
   return (
     <div style={{ background: 'white', padding: '30px', borderRadius: '8px' }}>
-      <h2>📋 Relatórios</h2>
+      <h2>📊 Relatórios</h2>
 
-      <div>
-        <p>Saldo: R$ {saldoCaixa.toFixed(2)}</p>
-        <p>Entradas: R$ {totalEntradas.toFixed(2)}</p>
-        <p>Saídas: R$ {totalSaidas.toFixed(2)}</p>
+      <div style={{ marginBottom: 20 }}>
+        <button onClick={() => setFiltroTipo('todos')}>Todos</button>
+        <button onClick={() => setFiltroTipo('entrada')}>Entradas</button>
+        <button onClick={() => setFiltroTipo('saida')}>Saídas</button>
       </div>
 
+      <div style={{ marginBottom: 20 }}>
+        <p><strong>Total Entradas:</strong> R$ {totalEntradas.toFixed(2)}</p>
+        <p><strong>Total Saídas:</strong> R$ {totalSaidas.toFixed(2)}</p>
+        <p><strong>Saldo:</strong> R$ {saldo.toFixed(2)}</p>
+      </div>
+
+      <table width="100%">
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Descrição</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {transacoesFiltradas.map(t => (
+            <tr key={t.id}>
+              <td>{t.tipo}</td>
+              <td>{t.descricao}</td>
+              <td>R$ {Number(t.valor).toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
