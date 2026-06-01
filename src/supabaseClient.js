@@ -9,8 +9,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const loginUser = async (email, password) => {
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } =
+      await supabase.auth.signInWithPassword({ email, password });
+
     if (error) throw error;
+
     return { success: true, user: data.user };
   } catch (error) {
     return { success: false, error: error.message };
@@ -21,6 +24,7 @@ export const logoutUser = async () => {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
@@ -31,20 +35,39 @@ export const logoutUser = async () => {
 
 export const getCaixa = async () => {
   try {
-    const { data, error } = await supabase.from('caixa').select('*').single();
+    const { data, error } = await supabase
+      .from('caixa')
+      .select('*')
+      .maybeSingle();
+
     if (error) throw error;
-    return { success: true, data };
+
+    return { success: true, data: data || { saldo: 0 } };
   } catch (error) {
-    return { success: false, data: { saldo: 0 }, error: error.message };
+    return {
+      success: false,
+      data: { saldo: 0 },
+      error: error.message,
+    };
   }
 };
 
 const atualizarCaixa = async (novoSaldo) => {
-  const { data: caixaAtual } = await supabase.from('caixa').select('id').single();
+  const { data: caixaAtual } = await supabase
+    .from('caixa')
+    .select('id')
+    .maybeSingle();
+
   if (!caixaAtual) {
     await supabase.from('caixa').insert([{ saldo: novoSaldo }]);
   } else {
-    await supabase.from('caixa').update({ saldo: novoSaldo, atualizado_em: new Date() }).eq('id', caixaAtual.id);
+    await supabase
+      .from('caixa')
+      .update({
+        saldo: novoSaldo,
+        atualizado_em: new Date(),
+      })
+      .eq('id', caixaAtual.id);
   }
 };
 
@@ -52,8 +75,14 @@ const atualizarCaixa = async (novoSaldo) => {
 
 export const getCategorias = async () => {
   try {
-    const { data, error } = await supabase.from('categorias').select('*').eq('ativo', true).order('nome');
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('*')
+      .eq('ativo', true)
+      .order('nome');
+
     if (error) throw error;
+
     return { success: true, data: data || [] };
   } catch (error) {
     return { success: false, data: [], error: error.message };
@@ -63,8 +92,19 @@ export const getCategorias = async () => {
 export const criarCategoria = async (categoria) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from('categorias').insert([{ ...categoria, criado_por: user?.id }]).select();
+
+    const { data, error } = await supabase
+      .from('categorias')
+      .insert([
+        {
+          ...categoria,
+          criado_por: user?.id,
+        },
+      ])
+      .select();
+
     if (error) throw error;
+
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message };
@@ -73,8 +113,14 @@ export const criarCategoria = async (categoria) => {
 
 export const atualizarCategoria = async (id, categoria) => {
   try {
-    const { data, error } = await supabase.from('categorias').update(categoria).eq('id', id).select();
+    const { data, error } = await supabase
+      .from('categorias')
+      .update(categoria)
+      .eq('id', id)
+      .select();
+
     if (error) throw error;
+
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message };
@@ -83,8 +129,14 @@ export const atualizarCategoria = async (id, categoria) => {
 
 export const deletarCategoria = async (id) => {
   try {
-    const { data, error } = await supabase.from('categorias').update({ ativo: false }).eq('id', id).select();
+    const { data, error } = await supabase
+      .from('categorias')
+      .update({ ativo: false })
+      .eq('id', id)
+      .select();
+
     if (error) throw error;
+
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message };
@@ -100,7 +152,9 @@ export const getTransacoes = async () => {
       .select('*, categorias(nome, tipo)')
       .is('deletado_em', null)
       .order('data_transacao', { ascending: false });
+
     if (error) throw error;
+
     return { success: true, data: data || [] };
   } catch (error) {
     return { success: false, data: [], error: error.message };
@@ -111,27 +165,41 @@ export const criarTransacao = async (transacao) => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { data: caixaAtual } = await supabase.from('caixa').select('saldo').single();
+    const { data: caixaAtual } = await supabase
+      .from('caixa')
+      .select('saldo')
+      .maybeSingle();
+
     const saldoAtual = parseFloat(caixaAtual?.saldo || 0);
     const valor = parseFloat(transacao.valor);
 
     let novoSaldo;
+
     if (transacao.tipo === 'entrada') {
       novoSaldo = saldoAtual + valor;
     } else {
-      if (saldoAtual < valor) throw new Error('Saldo insuficiente no caixa');
+      if (saldoAtual < valor) {
+        throw new Error('Saldo insuficiente no caixa');
+      }
       novoSaldo = saldoAtual - valor;
     }
 
-    const { data, error } = await supabase.from('transacoes').insert([{
-      descricao: transacao.descricao,
-      tipo: transacao.tipo,
-      categoria_id: transacao.categoria_id,
-      valor,
-      data_transacao: transacao.data_transacao ? transacao.data_transacao + 'T12:00:00' : new Date(),
-      saldo_apos: novoSaldo,
-      criado_por: user?.id
-    }]).select();
+    const { data, error } = await supabase
+      .from('transacoes')
+      .insert([
+        {
+          descricao: transacao.descricao,
+          tipo: transacao.tipo,
+          categoria_id: transacao.categoria_id,
+          valor,
+          data_transacao: transacao.data_transacao
+            ? new Date(transacao.data_transacao)
+            : new Date(),
+          saldo_apos: novoSaldo,
+          criado_por: user?.id,
+        },
+      ])
+      .select();
 
     if (error) throw error;
 
@@ -150,7 +218,9 @@ export const deletarTransacao = async (id) => {
       .update({ deletado_em: new Date() })
       .eq('id', id)
       .select();
+
     if (error) throw error;
+
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message };
