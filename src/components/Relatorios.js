@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { getTransacoes, getCaixa } from '../supabaseClient';
+import { getTransacoes, getCategorias, getCaixa } from '../supabaseClient';
 
 function Relatorios() {
   const [transacoes, setTransacoes] = useState([]);
+  const [, setCategorias] = useState([]); // <- CORRIGIDO (não usado no código)
   const [caixa, setCaixa] = useState({ saldo: 0 });
   const [filtro, setFiltro] = useState('recente');
 
@@ -13,28 +14,22 @@ function Relatorios() {
   }, []);
 
   const carregarDados = async () => {
-    const [trans, caixaData] = await Promise.all([
+    const [trans, cats, caixaData] = await Promise.all([
       getTransacoes(),
+      getCategorias(),
       getCaixa()
     ]);
 
     setTransacoes(trans.data || []);
+    setCategorias(cats.data || []);
     setCaixa(caixaData.data || { saldo: 0 });
   };
 
   const entradas = transacoes.filter(t => t.tipo === 'entrada');
   const saidas = transacoes.filter(t => t.tipo === 'saida');
 
-  const totalEntradas = entradas.reduce(
-    (acc, t) => acc + parseFloat(t.valor),
-    0
-  );
-
-  const totalSaidas = saidas.reduce(
-    (acc, t) => acc + parseFloat(t.valor),
-    0
-  );
-
+  const totalEntradas = entradas.reduce((acc, t) => acc + parseFloat(t.valor), 0);
+  const totalSaidas = saidas.reduce((acc, t) => acc + parseFloat(t.valor), 0);
   const saldoCaixa = parseFloat(caixa.saldo || 0);
 
   const transacoesOrdenadas = [...transacoes].sort((a, b) => {
@@ -51,11 +46,7 @@ function Relatorios() {
       existing.total += parseFloat(t.valor);
       existing.qtd += 1;
     } else {
-      acc.push({
-        nome: nomeCategoria,
-        total: parseFloat(t.valor),
-        qtd: 1
-      });
+      acc.push({ nome: nomeCategoria, total: parseFloat(t.valor), qtd: 1 });
     }
 
     return acc;
@@ -69,92 +60,22 @@ function Relatorios() {
       existing.total += parseFloat(t.valor);
       existing.qtd += 1;
     } else {
-      acc.push({
-        nome: nomeCategoria,
-        total: parseFloat(t.valor),
-        qtd: 1
-      });
+      acc.push({ nome: nomeCategoria, total: parseFloat(t.valor), qtd: 1 });
     }
 
     return acc;
   }, []).sort((a, b) => b.total - a.total);
 
-  const imprimirRelatorio = () => {
-    const janela = window.open('', '', 'width=700,height=900');
-
-    janela.document.write(`
-      <html>
-        <head>
-          <title>Relatório Contábil</title>
-          <style>
-            body { font-family: Arial; margin: 20px; }
-            h1 { text-align: center; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 8px; border-bottom: 1px solid #ddd; }
-            th { background: #f5f5f5; }
-            .verde { color: #2f9e44; }
-            .vermelho { color: #c92a2a; }
-            .azul { color: #667eea; }
-          </style>
-        </head>
-        <body>
-          <h1>RELATÓRIO — ${new Date().toLocaleDateString()}</h1>
-
-          <p><b>Saldo:</b> R$ ${saldoCaixa.toFixed(2)}</p>
-          <p><b>Entradas:</b> R$ ${totalEntradas.toFixed(2)}</p>
-          <p><b>Saídas:</b> R$ ${totalSaidas.toFixed(2)}</p>
-          <p><b>Resultado:</b> R$ ${(totalEntradas - totalSaidas).toFixed(2)}</p>
-
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-
-    janela.document.close();
-  };
-
   return (
-    <div>
-      <h2>Relatórios</h2>
-
-      <button onClick={imprimirRelatorio}>
-        Imprimir
-      </button>
-
-      <h3>Movimentações</h3>
+    <div style={{ background: 'white', padding: '30px', borderRadius: '8px' }}>
+      <h2>📋 Relatórios</h2>
 
       <div>
-        <button onClick={() => setFiltro('recente')}>
-          Mais recente
-        </button>
-        <button onClick={() => setFiltro('antiga')}>
-          Mais antiga
-        </button>
+        <p>Saldo: R$ {saldoCaixa.toFixed(2)}</p>
+        <p>Entradas: R$ {totalEntradas.toFixed(2)}</p>
+        <p>Saídas: R$ {totalSaidas.toFixed(2)}</p>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>Tipo</th>
-            <th>Descrição</th>
-            <th>Valor</th>
-            <th>Data</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {transacoesOrdenadas.map(t => (
-            <tr key={t.id}>
-              <td>{t.tipo}</td>
-              <td>{t.descricao}</td>
-              <td>{t.valor}</td>
-              <td>
-                {new Date(t.data_transacao).toLocaleDateString()}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
