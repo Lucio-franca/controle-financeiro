@@ -29,14 +29,25 @@ function Relatorios() {
 
   const saldo = totalEntradas - totalSaidas;
 
+  const btnStyle = (ativo) => ({
+    padding: '10px 20px',
+    marginRight: '10px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    background: ativo ? '#667eea' : '#f5f5f5',
+    color: ativo ? 'white' : '#333'
+  });
+
   return (
     <div style={{ background: 'white', padding: '30px', borderRadius: '8px' }}>
-      <h2>📊 Relatórios</h2>
+      <h2 style={{ marginBottom: '20px' }}>📊 Relatórios</h2>
 
       <div style={{ marginBottom: 20 }}>
-        <button onClick={() => setFiltroTipo('todos')}>Todos</button>
-        <button onClick={() => setFiltroTipo('entrada')}>Entradas</button>
-        <button onClick={() => setFiltroTipo('saida')}>Saídas</button>
+        <button style={btnStyle(filtroTipo === 'todos')} onClick={() => setFiltroTipo('todos')}>Todos</button>
+        <button style={btnStyle(filtroTipo === 'entrada')} onClick={() => setFiltroTipo('entrada')}>📥 Entradas</button>
+        <button style={btnStyle(filtroTipo === 'saida')} onClick={() => setFiltroTipo('saida')}>📤 Saídas</button>
       </div>
 
       <div style={{ marginBottom: 20 }}>
@@ -45,20 +56,26 @@ function Relatorios() {
         <p><strong>Saldo:</strong> R$ {saldo.toFixed(2)}</p>
       </div>
 
-      <table width="100%">
-        <thead>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead style={{ background: '#f5f5f5' }}>
           <tr>
-            <th>Tipo</th>
-            <th>Descrição</th>
-            <th>Valor</th>
+            <th style={{ padding: '12px', textAlign: 'left' }}>Tipo</th>
+            <th style={{ padding: '12px', textAlign: 'left' }}>Descrição</th>
+            <th style={{ padding: '12px', textAlign: 'left' }}>Valor</th>
           </tr>
         </thead>
         <tbody>
           {transacoesFiltradas.map(t => (
-            <tr key={t.id}>
-              <td>{t.tipo}</td>
-              <td>{t.descricao}</td>
-              <td>R$ {Number(t.valor).toFixed(2)}</td>
+            <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
+              <td style={{ padding: '12px' }}>{t.tipo}</td>
+              <td style={{ padding: '12px' }}>{t.descricao}</td>
+              <td style={{
+                padding: '12px',
+                fontWeight: 'bold',
+                color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a'
+              }}>
+                R$ {Number(t.valor).toFixed(2)}
+              </td>
             </tr>
           ))}
         </tbody>
