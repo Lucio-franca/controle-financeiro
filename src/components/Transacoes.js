@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getTransacoes } from '../supabaseClient';
+import { formatarMoeda } from '../utils/formatarNumero';
 
 function Transacoes() {
   const [transacoes, setTransacoes] = useState([]);
@@ -26,11 +27,11 @@ function Transacoes() {
     });
 
   const btnStyle = (ativo) => ({
-    padding: '8px 16px',
+    padding: '10px 20px',
     background: ativo ? '#667eea' : '#ffffff',
     color: ativo ? 'white' : '#333',
     border: ativo ? 'none' : '1px solid #ddd',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '14px',
@@ -39,12 +40,11 @@ function Transacoes() {
   });
 
   return (
-    <div style={{ background: 'white', padding: '30px', borderRadius: '8px' }}>
-      <h2 style={{ fontSize: '24px', marginTop: 0, marginBottom: '25px' }}>
+    <div style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+      <h2 style={{ fontSize: '24px', marginTop: 0, marginBottom: '25px', fontWeight: '700' }}>
         📋 Movimentações
       </h2>
 
-      {/* BOTÕES DE FILTRO */}
       <div style={{ display: 'flex', gap: '10px', marginBottom: '25px' }}>
         <button
           style={btnStyle(filtroTipo === 'todos')}
@@ -68,7 +68,6 @@ function Transacoes() {
         </button>
       </div>
 
-      {/* LISTA VAZIA */}
       {transacoesFiltradas.length === 0 ? (
         <p style={{
           textAlign: 'center',
@@ -79,79 +78,86 @@ function Transacoes() {
           Nenhuma movimentação registrada
         </p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-            <tr>
-              <th style={{ padding: '14px', textAlign: 'left' }}>Tipo</th>
-              <th style={{ padding: '14px', textAlign: 'left' }}>Descrição</th>
-              <th style={{ padding: '14px', textAlign: 'left' }}>Categoria</th>
-              <th style={{ padding: '14px', textAlign: 'left' }}>Valor</th>
-              <th style={{ padding: '14px', textAlign: 'left' }}>Saldo após</th>
-              <th
-                onClick={() => setOrdenacao(o => o === 'desc' ? 'asc' : 'desc')}
-                style={{ 
-                  padding: '14px', 
-                  textAlign: 'left', 
-                  cursor: 'pointer', 
-                  userSelect: 'none',
-                  fontWeight: 'bold'
-                }}
-              >
-                Data {ordenacao === 'desc' ? '↓' : '↑'}
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {transacoesFiltradas.map(t => (
-              <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
-                
-                <td style={{ padding: '14px' }}>
-                  <span style={{
-                    background: t.tipo === 'entrada' ? '#d3f9d8' : '#ffe0e0',
-                    color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a',
-                    padding: '6px 12px',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    fontSize: '14px'
-                  }}>
-                    {t.tipo === 'entrada' ? '📥 Entrada' : '📤 Saída'}
-                  </span>
-                </td>
-
-                <td style={{ padding: '14px', fontSize: '15px' }}>
-                  {t.descricao}
-                </td>
-
-                <td style={{
-                  padding: '14px',
-                  fontSize: '15px',
-                  color: '#667eea'
-                }}>
-                  {getNomeCategoria(t)}
-                </td>
-
-                <td style={{
-                  padding: '14px',
-                  fontWeight: 'bold',
-                  fontSize: '15px',
-                  color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a'
-                }}>
-                  {t.tipo === 'entrada' ? '+' : '-'} R$ {parseFloat(t.valor).toFixed(2)}
-                </td>
-
-                <td style={{ padding: '14px', fontSize: '15px', color: '#555' }}>
-                  R$ {parseFloat(t.saldo_apos || 0).toFixed(2)}
-                </td>
-
-                <td style={{ padding: '14px', fontSize: '15px' }}>
-                  {new Date(t.data_transacao).toLocaleDateString()}
-                </td>
-
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0' }}>
+            <thead style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd' }}>
+              <tr>
+                <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Tipo</th>
+                <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Descrição</th>
+                <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Categoria</th>
+                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Valor</th>
+                <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Saldo após</th>
+                <th
+                  onClick={() => setOrdenacao(o => o === 'desc' ? 'asc' : 'desc')}
+                  style={{ 
+                    padding: '14px 16px', 
+                    textAlign: 'left', 
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    color: '#495057',
+                    cursor: 'pointer', 
+                    userSelect: 'none'
+                  }}
+                >
+                  Data {ordenacao === 'desc' ? '↓' : '↑'}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+
+            <tbody>
+              {transacoesFiltradas.map(t => (
+                <tr key={t.id} style={{ borderBottom: '1px solid #eee', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  
+                  <td style={{ padding: '14px 16px' }}>
+                    <span style={{
+                      background: t.tipo === 'entrada' ? '#d3f9d8' : '#ffe0e0',
+                      color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontWeight: 'bold',
+                      fontSize: '13px',
+                      display: 'inline-block'
+                    }}>
+                      {t.tipo === 'entrada' ? '📥 Entrada' : '📤 Saída'}
+                    </span>
+                  </td>
+
+                  <td style={{ padding: '14px 16px', fontSize: '15px', color: '#333' }}>
+                    {t.descricao}
+                  </td>
+
+                  <td style={{
+                    padding: '14px 16px',
+                    fontSize: '15px',
+                    color: '#667eea'
+                  }}>
+                    {getNomeCategoria(t)}
+                  </td>
+
+                  <td style={{
+                    padding: '14px 16px',
+                    fontWeight: 'bold',
+                    fontSize: '15px',
+                    color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a',
+                    textAlign: 'right',
+                    fontFamily: 'monospace'
+                  }}>
+                    {t.tipo === 'entrada' ? '+' : '-'} {formatarMoeda(Math.abs(parseFloat(t.valor)))}
+                  </td>
+
+                  <td style={{ padding: '14px 16px', fontSize: '15px', color: '#555', textAlign: 'right', fontFamily: 'monospace' }}>
+                    {formatarMoeda(parseFloat(t.saldo_apos || 0))}
+                  </td>
+
+                  <td style={{ padding: '14px 16px', fontSize: '15px', color: '#666' }}>
+                    {new Date(t.data_transacao).toLocaleDateString('pt-BR')}
+                  </td>
+
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

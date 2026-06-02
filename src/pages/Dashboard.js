@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { logoutUser, getTransacoes, getCaixa } from '../supabaseClient';
+import { formatarMoeda } from '../utils/formatarNumero';
 import Entradas from '../components/Entradas';
 import Saidas from '../components/Saidas';
 import Transacoes from '../components/Transacoes';
@@ -32,7 +33,7 @@ function Dashboard({ user }) {
   const saidas = transacoes.filter(t => t.tipo === 'saida');
   const totalEntradas = entradas.reduce((acc, t) => acc + parseFloat(t.valor), 0);
   const totalSaidas = saidas.reduce((acc, t) => acc + parseFloat(t.valor), 0);
-  const saldoCaixa = parseFloat(caixa.saldo || 0);
+  const saldoCaixa = totalEntradas - totalSaidas;
 
   const tabs = [
     { key: 'painel', label: '📊 Painel' },
@@ -43,96 +44,139 @@ function Dashboard({ user }) {
     { key: 'relatorios', label: '📈 Relatórios' },
   ];
 
+  const cardNumberStyle = { fontSize: '26px', fontWeight: '700', fontFamily: "'Courier New', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+
   return (
-    <div>
+    <div style={{ background: '#f8f9fa', minHeight: '100vh' }}>
       <header style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white', padding: '20px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        color: 'white',
+        padding: '25px 30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
       }}>
-        <h1 style={{ margin: 0, fontSize: '28px' }}>💼 Financeiro</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <h1 style={{ margin: 0, fontSize: '32px', fontWeight: '700' }}>💼 Financeiro</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '25px' }}>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: 0, fontWeight: 'bold' }}>{user?.email}</p>
-            <small style={{ opacity: 0.9 }}>👤 Usuário</small>
+            <p style={{ margin: 0, fontWeight: '600', fontSize: '15px' }}>{user?.email}</p>
+            <small style={{ opacity: 0.85, fontSize: '12px' }}>👤 Usuário</small>
           </div>
-          <button onClick={handleLogout} style={{ background: '#ff6b6b', color: 'white', border: 'none', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+          <button onClick={handleLogout} style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '14px', backdropFilter: 'blur(10px)', transition: 'all 0.3s' }} onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.3)'} onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}>
             🚪 Sair
           </button>
         </div>
       </header>
 
-      <div style={{ padding: '30px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ padding: '40px 30px', maxWidth: '1400px', margin: '0 auto' }}>
 
-        <nav style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap', background: 'white', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+        <nav style={{ display: 'flex', gap: '12px', marginBottom: '35px', flexWrap: 'wrap', background: 'white', padding: '18px 24px', borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)' }}>
           {tabs.map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-              padding: '12px 20px', background: activeTab === tab.key ? '#667eea' : '#f5f5f5',
-              color: activeTab === tab.key ? 'white' : '#333',
-              border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px'
-            }}>
+              padding: '10px 24px',
+              background: activeTab === tab.key ? '#667eea' : '#f5f5f5',
+              color: activeTab === tab.key ? 'white' : '#555',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '15px',
+              transition: 'all 0.3s',
+              boxShadow: activeTab === tab.key ? '0 4px 12px rgba(102, 126, 234, 0.4)' : 'none'
+            }} onMouseEnter={(e) => { if (activeTab !== tab.key) e.target.style.background = '#efefef'; }} onMouseLeave={(e) => { if (activeTab !== tab.key) e.target.style.background = '#f5f5f5'; }}>
               {tab.label}
             </button>
           ))}
         </nav>
 
         {activeTab === 'painel' && (
-          <div style={{ background: 'white', padding: '30px', borderRadius: '8px' }}>
-            <h2 style={{ color: '#667eea', marginTop: 0, fontSize: '26px', marginBottom: '30px' }}>📊 Painel Principal</h2>
+          <div>
+            <h2 style={{ color: '#333', marginTop: 0, marginBottom: '30px', fontSize: '28px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              📊 Painel Principal
+            </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-              <div style={{ background: 'linear-gradient(135deg, #667eea, #764ba2)', color: 'white', padding: '30px', borderRadius: '12px', textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>💰 Saldo em Caixa</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold' }}>R$ {saldoCaixa.toFixed(2)}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', marginBottom: '45px' }}>
+              {/* SALDO */}
+              <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '28px 24px', borderRadius: '14px', boxShadow: '0 8px 24px rgba(102, 126, 234, 0.3)', transition: 'transform 0.3s, box-shadow 0.3s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '150px' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(102, 126, 234, 0.4)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(102, 126, 234, 0.3)'; }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', opacity: 0.95, marginBottom: '16px' }}>💰 Saldo em Caixa</h3>
+                </div>
+                <div style={cardNumberStyle}>
+                  {formatarMoeda(saldoCaixa)}
+                </div>
               </div>
-              <div style={{ background: 'linear-gradient(135deg, #51cf66, #37b24d)', color: 'white', padding: '30px', borderRadius: '12px', textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>📥 Total Entradas</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold' }}>R$ {totalEntradas.toFixed(2)}</div>
+
+              {/* ENTRADAS */}
+              <div style={{ background: 'linear-gradient(135deg, #51cf66 0%, #37b24d 100%)', color: 'white', padding: '28px 24px', borderRadius: '14px', boxShadow: '0 8px 24px rgba(81, 207, 102, 0.3)', transition: 'transform 0.3s, box-shadow 0.3s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '150px' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(81, 207, 102, 0.4)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(81, 207, 102, 0.3)'; }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', opacity: 0.95, marginBottom: '16px' }}>📥 Total Entradas</h3>
+                </div>
+                <div style={cardNumberStyle}>
+                  {formatarMoeda(totalEntradas)}
+                </div>
               </div>
-              <div style={{ background: 'linear-gradient(135deg, #ff6b6b, #ee5a6f)', color: 'white', padding: '30px', borderRadius: '12px', textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>📤 Total Saídas</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold' }}>R$ {totalSaidas.toFixed(2)}</div>
+
+              {/* SAÍDAS */}
+              <div style={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)', color: 'white', padding: '28px 24px', borderRadius: '14px', boxShadow: '0 8px 24px rgba(255, 107, 107, 0.3)', transition: 'transform 0.3s, box-shadow 0.3s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '150px' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(255, 107, 107, 0.4)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(255, 107, 107, 0.3)'; }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', opacity: 0.95, marginBottom: '16px' }}>📤 Total Saídas</h3>
+                </div>
+                <div style={cardNumberStyle}>
+                  {formatarMoeda(totalSaidas)}
+                </div>
               </div>
-              <div style={{ background: 'linear-gradient(135deg, #4ecdc4, #44b7a8)', color: 'white', padding: '30px', borderRadius: '12px', textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>📊 Resultado</h3>
-                <div style={{ fontSize: '32px', fontWeight: 'bold' }}>R$ {(totalEntradas - totalSaidas).toFixed(2)}</div>
+
+              {/* RESULTADO */}
+              <div style={{ background: 'linear-gradient(135deg, #4ecdc4 0%, #44b7a8 100%)', color: 'white', padding: '28px 24px', borderRadius: '14px', boxShadow: '0 8px 24px rgba(78, 205, 196, 0.3)', transition: 'transform 0.3s, box-shadow 0.3s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '150px' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-8px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(78, 205, 196, 0.4)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(78, 205, 196, 0.3)'; }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', opacity: 0.95, marginBottom: '16px' }}>📊 Resultado</h3>
+                </div>
+                <div style={cardNumberStyle}>
+                  {formatarMoeda(totalEntradas - totalSaidas)}
+                </div>
               </div>
             </div>
 
-            <h3 style={{ marginBottom: '15px' }}>🕐 Últimas Movimentações</h3>
-            {transacoes.length === 0 ? (
-              <p style={{ textAlign: 'center', color: '#999' }}>Nenhuma movimentação registrada</p>
-            ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                  <tr>
-                    <th style={{ padding: '14px', textAlign: 'left' }}>Tipo</th>
-                    <th style={{ padding: '14px', textAlign: 'left' }}>Descrição</th>
-                    <th style={{ padding: '14px', textAlign: 'left' }}>Categoria</th>
-                    <th style={{ padding: '14px', textAlign: 'left' }}>Valor</th>
-                    <th style={{ padding: '14px', textAlign: 'left' }}>Data</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transacoes.slice(0, 10).map(t => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid #eee' }}>
-                      <td style={{ padding: '14px' }}>
-                        <span style={{ background: t.tipo === 'entrada' ? '#d3f9d8' : '#ffe0e0', color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a', padding: '5px 10px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px' }}>
-                          {t.tipo === 'entrada' ? '📥 Entrada' : '📤 Saída'}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px' }}>{t.descricao}</td>
-                      <td style={{ padding: '14px', color: '#667eea' }}>{t.categorias?.nome || '—'}</td>
-                      <td style={{ padding: '14px', fontWeight: 'bold', color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a' }}>
-                        {t.tipo === 'entrada' ? '+' : '-'} R$ {parseFloat(t.valor).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '14px' }}>{new Date(t.data_transacao).toLocaleDateString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            <div style={{ background: 'white', borderRadius: '14px', padding: '28px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.05)' }}>
+              <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '700', color: '#333', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                🕐 Últimas Movimentações
+              </h3>
+              {transacoes.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#999', fontSize: '16px', padding: '40px 20px' }}>Nenhuma movimentação registrada</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0' }}>
+                    <thead>
+                      <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #e9ecef' }}>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', color: '#495057', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tipo</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', color: '#495057', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Descrição</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', color: '#495057', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Categoria</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '700', color: '#495057', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Valor</th>
+                        <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', color: '#495057', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Data</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transacoes.slice(0, 10).map((t, idx) => (
+                        <tr key={t.id} style={{ borderBottom: '1px solid #e9ecef', transition: 'background 0.2s', background: idx % 2 === 0 ? '#ffffff' : '#f8f9fa' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f0f3f8'} onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? '#ffffff' : '#f8f9fa'}>
+                          <td style={{ padding: '14px 16px' }}>
+                            <span style={{ background: t.tipo === 'entrada' ? '#d3f9d8' : '#ffe0e0', color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a', padding: '5px 10px', borderRadius: '5px', fontWeight: '600', fontSize: '11px', display: 'inline-block', whiteSpace: 'nowrap' }}>
+                              {t.tipo === 'entrada' ? '📥 Entrada' : '📤 Saída'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 16px', color: '#333', fontSize: '14px' }}>{t.descricao}</td>
+                          <td style={{ padding: '14px 16px', color: '#667eea', fontSize: '14px' }}>{t.categorias?.nome || '—'}</td>
+                          <td style={{ padding: '14px 16px', fontWeight: '700', color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a', textAlign: 'right', fontFamily: "'Courier New', monospace", fontSize: '14px' }}>
+                            {t.tipo === 'entrada' ? '+' : '-'} {formatarMoeda(Math.abs(t.valor))}
+                          </td>
+                          <td style={{ padding: '14px 16px', color: '#6c757d', fontSize: '14px' }}>{new Date(t.data_transacao).toLocaleDateString('pt-BR')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
