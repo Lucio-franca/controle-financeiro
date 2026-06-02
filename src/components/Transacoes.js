@@ -3,7 +3,6 @@ import { getTransacoes, getCategorias } from '../supabaseClient';
 
 function Transacoes() {
   const [transacoes, setTransacoes] = useState([]);
-  const [categorias, setCategorias] = useState([]);
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [ordenacao, setOrdenacao] = useState('desc');
 
