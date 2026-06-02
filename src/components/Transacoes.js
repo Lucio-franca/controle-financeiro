@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getTransacoes, getCategorias } from '../supabaseClient';
+import { getTransacoes } from '../supabaseClient';
 
 function Transacoes() {
   const [transacoes, setTransacoes] = useState([]);
-  const [categorias, setCategorias] = useState([]);
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [ordenacao, setOrdenacao] = useState('desc');
 
@@ -12,13 +11,8 @@ function Transacoes() {
   }, []);
 
   const carregarDados = async () => {
-    const [trans, cats] = await Promise.all([
-      getTransacoes(),
-      getCategorias()
-    ]);
-
+    const trans = await getTransacoes();
     setTransacoes(trans.data || []);
-    setCategorias(cats.data || []);
   };
 
   const getNomeCategoria = (t) => t.categorias?.nome || '—';
