@@ -5,6 +5,7 @@ function Transacoes() {
   const [transacoes, setTransacoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [ordenacao, setOrdenacao] = useState('desc');
 
   useEffect(() => {
     carregarDados();
@@ -22,19 +23,25 @@ function Transacoes() {
 
   const getNomeCategoria = (t) => t.categorias?.nome || '—';
 
-  const transacoesFiltradas =
-    filtroTipo === 'todos'
-      ? transacoes
-      : transacoes.filter(t => t.tipo === filtroTipo);
+  const transacoesFiltradas = [...transacoes]
+    .filter(t => filtroTipo === 'todos' ? true : t.tipo === filtroTipo)
+    .sort((a, b) => {
+      const dA = new Date(a.data_transacao);
+      const dB = new Date(b.data_transacao);
+      return ordenacao === 'desc' ? dB - dA : dA - dB;
+    });
 
   const btnStyle = (ativo) => ({
-    padding: '10px 20px',
-    background: ativo ? '#667eea' : '#f5f5f5',
+    padding: '8px 16px',
+    background: ativo ? '#667eea' : '#ffffff',
     color: ativo ? 'white' : '#333',
-    border: 'none',
-    borderRadius: '6px',
+    border: ativo ? 'none' : '1px solid #ddd',
+    borderRadius: '4px',
     cursor: 'pointer',
-    fontWeight: 'bold'
+    fontWeight: '600',
+    fontSize: '14px',
+    transition: 'all 0.2s ease',
+    boxShadow: ativo ? '0 2px 8px rgba(102, 126, 234, 0.3)' : 'none'
   });
 
   return (
@@ -86,7 +93,18 @@ function Transacoes() {
               <th style={{ padding: '14px', textAlign: 'left' }}>Categoria</th>
               <th style={{ padding: '14px', textAlign: 'left' }}>Valor</th>
               <th style={{ padding: '14px', textAlign: 'left' }}>Saldo após</th>
-              <th style={{ padding: '14px', textAlign: 'left' }}>Data</th>
+              <th
+                onClick={() => setOrdenacao(o => o === 'desc' ? 'asc' : 'desc')}
+                style={{ 
+                  padding: '14px', 
+                  textAlign: 'left', 
+                  cursor: 'pointer', 
+                  userSelect: 'none',
+                  fontWeight: 'bold'
+                }}
+              >
+                Data {ordenacao === 'desc' ? '↓' : '↑'}
+              </th>
             </tr>
           </thead>
 
