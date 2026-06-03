@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { logoutUser, getTransacoes, getCaixa } from '../supabaseClient';
+import { logoutUser, getTransacoes } from '../supabaseClient';
 import { formatarMoeda } from '../utils/formatarNumero';
 import Entradas from '../components/Entradas';
 import Saidas from '../components/Saidas';
@@ -10,7 +10,6 @@ import Categorias from '../components/Categorias';
 function Dashboard({ user }) {
   const [activeTab, setActiveTab] = useState('painel');
   const [transacoes, setTransacoes] = useState([]);
-  const [caixa, setCaixa] = useState({ saldo: 0 });
 
   useEffect(() => {
     carregarDados();
@@ -19,9 +18,8 @@ function Dashboard({ user }) {
   }, []);
 
   const carregarDados = async () => {
-    const [trans, caixaData] = await Promise.all([getTransacoes(), getCaixa()]);
+    const trans = await getTransacoes();
     setTransacoes(trans.data || []);
-    setCaixa(caixaData.data || { saldo: 0 });
   };
 
   const handleLogout = async () => {
