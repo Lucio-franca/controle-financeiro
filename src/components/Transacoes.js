@@ -78,9 +78,9 @@ function Transacoes() {
           Nenhuma movimentação registrada
         </p>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '500px' }}>
           <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0' }}>
-            <thead style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd' }}>
+            <thead style={{ background: '#f8f9fa', borderBottom: '2px solid #ddd', position: 'sticky', top: 0, zIndex: 1 }}>
               <tr>
                 <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Tipo</th>
                 <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '700', fontSize: '14px', color: '#495057' }}>Descrição</th>

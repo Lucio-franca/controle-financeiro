@@ -226,3 +226,41 @@ export const deletarTransacao = async (id) => {
     return { success: false, error: error.message };
   }
 };
+
+// FIADOS
+export const getFiados = async () => {
+  const { data, error } = await supabase
+    .from('fiados')
+    .select('*, categorias(nome)')
+    .is('deletado_em', null)
+    .order('criado_em', { ascending: false });
+  return { data, error };
+};
+
+export const criarFiado = async (fiado) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('fiados')
+    .insert([{ ...fiado, criado_por: user?.id }])
+    .select();
+  if (error) return { success: false, error: error.message };
+  return { success: true, data };
+};
+
+export const pagarFiado = async (id) => {
+  const { data, error } = await supabase
+    .from('fiados')
+    .update({ pago: true, data_pagamento: new Date() })
+    .eq('id', id)
+    .select();
+  if (error) return { success: false, error: error.message };
+  return { success: true, data };
+};
+
+export const deletarFiado = async (id) => {
+  const { error } = await supabase
+    .from('fiados')
+    .delete()
+    .eq('id', id);
+  return { error };
+};
