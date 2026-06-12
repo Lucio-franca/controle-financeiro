@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { getTransacoes, getCategorias, getFiados } from '../supabaseClient';
-import { formatarMoeda } from '../utils/formatarNumero';
-import * as XLSX from 'xlsx';
+// Relatorios.jsx
+import React, { useState, useEffect } from "react";
+import { getTransacoes, getCategorias, getFiados } from "../supabaseClient";
+import { formatarMoeda } from "../utils/formatarNumero";
+import * as XLSX from "xlsx";
 
 function Relatorios() {
   const [transacoes, setTransacoes] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [fiados, setFiados] = useState([]);
-  const [filtroTipo, setFiltroTipo] = useState('todos');
-  const [ordenacao, setOrdenacao] = useState('desc');
+  const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [ordenacao, setOrdenacao] = useState("desc");
+  const [dataFiltro, setDataFiltro] = useState("");
+  const [categoriaFiltro, setCategoriaFiltro] = useState("");
 
   useEffect(() => {
     carregarDados();
@@ -16,7 +19,7 @@ function Relatorios() {
   }, []);
 
   const adicionarEstiloPrint = () => {
-    const style = document.createElement('style');
+    const style = document.createElement("style");
     style.textContent = `
       @media print {
         * { margin: 0; padding: 0; }
@@ -32,206 +35,637 @@ function Relatorios() {
         .relatorio-section { page-break-inside: avoid; margin-bottom: 40px; }
         * { box-shadow: none !important; max-height: none !important; overflow: visible !important; }
       }
+      @keyframes slideInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+      .card-appear { animation: slideInUp 0.5s ease-out; }
+      .btn-hover { transition: all 0.3s ease; }
+      .btn-hover:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
     `;
     document.head.appendChild(style);
   };
 
   const carregarDados = async () => {
-    const [trans, cats, fiadosRes] = await Promise.all([getTransacoes(), getCategorias(), getFiados()]);
+    const [trans, cats, fiadosRes] = await Promise.all([
+      getTransacoes(),
+      getCategorias(),
+      getFiados(),
+    ]);
     setTransacoes(trans.data || []);
     setCategorias(cats.data || []);
     setFiados(fiadosRes.data || []);
   };
 
-  const totalEntradas = transacoes.filter(t => t.tipo === 'entrada').reduce((acc, t) => acc + Number(t.valor), 0);
-  const totalSaidas = transacoes.filter(t => t.tipo === 'saida').reduce((acc, t) => acc + Number(t.valor), 0);
+  const totalEntradas = transacoes
+    .filter((t) => t.tipo === "entrada")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+  const totalSaidas = transacoes
+    .filter((t) => t.tipo === "saida")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
   const saldo = totalEntradas - totalSaidas;
   const rendimento = saldo > 0 ? saldo : 0;
 
-  const fiadosPendentes = fiados.filter(f => !f.pago);
-  const fiadosPagos = fiados.filter(f => f.pago);
-  const totalFiadoPendente = fiadosPendentes.reduce((acc, f) => acc + Number(f.valor), 0);
-  const totalFiadoPago = fiadosPagos.reduce((acc, f) => acc + Number(f.valor), 0);
+  const fiadosPendentes = fiados.filter((f) => !f.pago);
+  const fiadosPagos = fiados.filter((f) => f.pago);
+  const totalFiadoPendente = fiadosPendentes.reduce(
+    (acc, f) => acc + Number(f.valor),
+    0,
+  );
+  const totalFiadoPago = fiadosPagos.reduce(
+    (acc, f) => acc + Number(f.valor),
+    0,
+  );
 
   const transacoesFiltradas = [...transacoes]
-    .filter(t => filtroTipo === 'todos' ? true : t.tipo === filtroTipo)
+    .filter((t) => (filtroTipo === "todos" ? true : t.tipo === filtroTipo))
+    .filter((t) => {
+      if (!dataFiltro) return true;
+      const dataT = new Date(t.data_transacao).toLocaleDateString("en-CA");
+      return dataT === dataFiltro;
+    })
+    .filter((t) => {
+      if (!categoriaFiltro) return true;
+      return t.categoria_id === categoriaFiltro;
+    })
     .sort((a, b) => {
       const dA = new Date(a.data_transacao);
       const dB = new Date(b.data_transacao);
-      return ordenacao === 'desc' ? dB - dA : dA - dB;
+      return ordenacao === "desc" ? dB - dA : dA - dB;
     });
 
-  const entradasPorCategoria = categorias.filter(c => c.tipo === 'entrada').map(cat => {
-    const total = transacoes.filter(t => t.tipo === 'entrada' && t.categoria_id === cat.id).reduce((acc, t) => acc + Number(t.valor), 0);
-    const qtd = transacoes.filter(t => t.tipo === 'entrada' && t.categoria_id === cat.id).length;
-    return { ...cat, total, qtd };
-  });
+  const limparFiltros = () => {
+    setFiltroTipo("todos");
+    setDataFiltro("");
+    setCategoriaFiltro("");
+  };
 
-  const saidasPorCategoria = categorias.filter(c => c.tipo === 'saida').map(cat => {
-    const total = transacoes.filter(t => t.tipo === 'saida' && t.categoria_id === cat.id).reduce((acc, t) => acc + Number(t.valor), 0);
-    const qtd = transacoes.filter(t => t.tipo === 'saida' && t.categoria_id === cat.id).length;
-    return { ...cat, total, qtd };
-  });
+  const entradasPorCategoria = categorias
+    .filter((c) => c.tipo === "entrada")
+    .map((cat) => {
+      const total = transacoes
+        .filter((t) => t.tipo === "entrada" && t.categoria_id === cat.id)
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const qtd = transacoes.filter(
+        (t) => t.tipo === "entrada" && t.categoria_id === cat.id,
+      ).length;
+      return { ...cat, total, qtd };
+    });
+
+  const saidasPorCategoria = categorias
+    .filter((c) => c.tipo === "saida")
+    .map((cat) => {
+      const total = transacoes
+        .filter((t) => t.tipo === "saida" && t.categoria_id === cat.id)
+        .reduce((acc, t) => acc + Number(t.valor), 0);
+      const qtd = transacoes.filter(
+        (t) => t.tipo === "saida" && t.categoria_id === cat.id,
+      ).length;
+      return { ...cat, total, qtd };
+    });
 
   const gerarExcel = () => {
     const wb = XLSX.utils.book_new();
-    const dataAtual = new Date().toLocaleDateString('pt-BR');
+    const dataAtual = new Date().toLocaleDateString("pt-BR");
 
     const resumoData = [
-      ['RESUMO EXECUTIVO FINANCEIRO'],
+      ["RESUMO EXECUTIVO FINANCEIRO"],
       [],
-      ['Data do Relatório', new Date().toLocaleString('pt-BR')],
+      ["Data do Relatório", new Date().toLocaleString("pt-BR")],
       [],
-      ['INDICADORES PRINCIPAIS'],
-      ['Descrição', 'Valor (R$)'],
-      ['Saldo em Caixa', saldo],
-      ['Total de Entradas', totalEntradas],
-      ['Total de Saídas', totalSaidas],
-      ['Rendimento', rendimento],
+      ["INDICADORES PRINCIPAIS"],
+      ["Descrição", "Valor (R$)"],
+      ["Saldo em Caixa", saldo],
+      ["Total de Entradas", totalEntradas],
+      ["Total de Saídas", totalSaidas],
+      ["Rendimento", rendimento],
       [],
-      ['FIADOS'],
-      ['Total Pendente a Receber', totalFiadoPendente],
-      ['Total já Recebido (Fiado)', totalFiadoPago],
-      ['Qtd Fiados Pendentes', fiadosPendentes.length],
-      ['Qtd Fiados Pagos', fiadosPagos.length],
+      ["FIADOS"],
+      ["Total Pendente a Receber", totalFiadoPendente],
+      ["Total já Recebido (Fiado)", totalFiadoPago],
+      ["Qtd Fiados Pendentes", fiadosPendentes.length],
+      ["Qtd Fiados Pagos", fiadosPagos.length],
     ];
 
     const fiadosData = [
-      ['FIADOS'],
+      ["FIADOS"],
       [],
-      ['Cliente', 'Descrição', 'Valor (R$)', 'Status', 'Data Fiado', 'Data Pagamento'],
-      ...fiados.map(f => [
+      [
+        "Cliente",
+        "Descrição",
+        "Valor (R$)",
+        "Status",
+        "Data Fiado",
+        "Data Pagamento",
+      ],
+      ...fiados.map((f) => [
         f.cliente,
         f.descricao,
         Number(f.valor),
-        f.pago ? 'PAGO' : 'PENDENTE',
-        new Date(f.data_fiado).toLocaleDateString('pt-BR'),
-        f.data_pagamento ? new Date(f.data_pagamento).toLocaleDateString('pt-BR') : '-'
-      ])
+        f.pago ? "PAGO" : "PENDENTE",
+        new Date(f.data_fiado).toLocaleDateString("pt-BR"),
+        f.data_pagamento
+          ? new Date(f.data_pagamento).toLocaleDateString("pt-BR")
+          : "-",
+      ]),
     ];
 
     const entradasData = [
-      ['ENTRADAS POR CATEGORIA'],
+      ["ENTRADAS POR CATEGORIA"],
       [],
-      ['Categoria', 'Quantidade', 'Total (R$)'],
-      ...entradasPorCategoria.map(cat => [cat.nome, cat.qtd, cat.total])
+      ["Categoria", "Quantidade", "Total (R$)"],
+      ...entradasPorCategoria.map((cat) => [cat.nome, cat.qtd, cat.total]),
     ];
 
     const saidasData = [
-      ['SAÍDAS POR CATEGORIA'],
+      ["SAÍDAS POR CATEGORIA"],
       [],
-      ['Categoria', 'Quantidade', 'Total (R$)'],
-      ...saidasPorCategoria.map(cat => [cat.nome, cat.qtd, cat.total])
+      ["Categoria", "Quantidade", "Total (R$)"],
+      ...saidasPorCategoria.map((cat) => [cat.nome, cat.qtd, cat.total]),
     ];
 
     const movData = [
-      ['TODAS AS MOVIMENTAÇÕES'],
+      ["TODAS AS MOVIMENTAÇÕES"],
       [],
-      ['Tipo', 'Descrição', 'Categoria', 'Valor (R$)', 'Data'],
+      ["Tipo", "Descrição", "Categoria", "Valor (R$)", "Data"],
       ...transacoes
         .sort((a, b) => new Date(b.data_transacao) - new Date(a.data_transacao))
-        .map(t => [
-          t.tipo === 'entrada' ? 'ENTRADA' : 'SAÍDA',
+        .map((t) => [
+          t.tipo === "entrada" ? "ENTRADA" : "SAÍDA",
           t.descricao,
-          t.categorias?.nome || '-',
-          t.tipo === 'entrada' ? Number(t.valor) : -Number(t.valor),
-          new Date(t.data_transacao).toLocaleDateString('pt-BR')
-        ])
+          t.categorias?.nome || "-",
+          t.tipo === "entrada" ? Number(t.valor) : -Number(t.valor),
+          new Date(t.data_transacao).toLocaleDateString("pt-BR"),
+        ]),
     ];
 
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumoData), 'Resumo');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(fiadosData), 'Fiados');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(entradasData), 'Entradas');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(saidasData), 'Saídas');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(movData), 'Movimentações');
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(resumoData),
+      "Resumo",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(fiadosData),
+      "Fiados",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(entradasData),
+      "Entradas",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(saidasData),
+      "Saídas",
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet(movData),
+      "Movimentações",
+    );
 
-    XLSX.writeFile(wb, `Relatorio_Financeiro_${dataAtual.replace(/\//g, '-')}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `Relatorio_Financeiro_${dataAtual.replace(/\//g, "-")}.xlsx`,
+    );
   };
 
-  const thStyle = (extra = {}) => ({ padding: '12px 16px', textAlign: 'left', fontWeight: 'bold', fontSize: '14px', color: '#495057', background: '#f5f5f5', ...extra });
-  const tdStyle = (extra = {}) => ({ padding: '12px 16px', fontSize: '14px', ...extra });
+  const thStyle = {
+    padding: "14px 16px",
+    textAlign: "left",
+    fontWeight: "700",
+    fontSize: "12px",
+    color: "#556575",
+    background: "#f0f2f5",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  };
+  const tdStyle = { padding: "14px 16px", fontSize: "14px", color: "#333" };
 
   return (
-    <div style={{ background: 'white', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} className="relatorio-container">
-      <div className="print-header" style={{ display: 'none' }}>
+    <div
+      style={{ background: "#f5f7fa", borderRadius: "14px", padding: "30px" }}
+      className="relatorio-container"
+    >
+      <div className="print-header" style={{ display: "none" }}>
         <h1>📊 Relatório Financeiro</h1>
-        <p>Data: {new Date().toLocaleString('pt-BR')}</p>
+        <p>Data: {new Date().toLocaleString("pt-BR")}</p>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', gap: '12px', flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: '24px', margin: 0, fontWeight: '700' }}>📊 Relatórios</h2>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={gerarExcel}
-            style={{ padding: '10px 24px', background: '#51cf66', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
-            onMouseEnter={(e) => e.target.style.background = '#40c057'}
-            onMouseLeave={(e) => e.target.style.background = '#51cf66'}>
-            📥 Exportar Excel
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "40px",
+          gap: "15px",
+          flexWrap: "wrap",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "28px",
+            margin: 0,
+            fontWeight: "700",
+            color: "#1a1a1a",
+          }}
+        >
+          📊 Relatórios
+        </h2>
+        <div style={{ display: "flex", gap: "12px" }}>
+          <button
+            onClick={gerarExcel}
+            className="btn-hover"
+            style={{
+              padding: "11px 26px",
+              background: "#51cf66",
+              color: "white",
+              border: "none",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontWeight: "600",
+              fontSize: "14px",
+              boxShadow: "0 4px 12px rgba(81, 207, 102, 0.2)",
+            }}
+          >
+            📥 Excel
           </button>
-          <button onClick={() => window.print()}
-            style={{ padding: '10px 24px', background: '#667eea', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
-            onMouseEnter={(e) => e.target.style.background = '#5568d3'}
-            onMouseLeave={(e) => e.target.style.background = '#667eea'}>
+          <button
+            onClick={() => window.print()}
+            className="btn-hover"
+            style={{
+              padding: "11px 26px",
+              background: "#667eea",
+              color: "white",
+              border: "none",
+              borderRadius: "10px",
+              cursor: "pointer",
+              fontWeight: "600",
+              fontSize: "14px",
+              boxShadow: "0 4px 12px rgba(102, 126, 234, 0.2)",
+            }}
+          >
             🖨️ Imprimir
           </button>
         </div>
       </div>
 
-      {/* Cards resumo */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '40px' }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "18px",
+          marginBottom: "45px",
+        }}
+      >
         {[
-          { label: '💰 Saldo em Caixa', valor: saldo, bg: '#cfe0f8', color: '#4a5cc7' },
-          { label: '📈 Total Entradas', valor: totalEntradas, bg: '#a8e6c1', color: '#1b8a4f' },
-          { label: '📉 Total Saídas', valor: totalSaidas, bg: '#ffb3ba', color: '#c92a2a' },
-          { label: '💵 Rendimento', valor: rendimento, bg: '#d4d4d4', color: '#595959' },
+          {
+            label: "💰 Saldo",
+            valor: saldo,
+            bg: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            textColor: "#667eea",
+          },
+          {
+            label: "📈 Entradas",
+            valor: totalEntradas,
+            bg: "linear-gradient(135deg, #51cf66 0%, #37b24d 100%)",
+            textColor: "#51cf66",
+          },
+          {
+            label: "📉 Saídas",
+            valor: totalSaidas,
+            bg: "linear-gradient(135deg, #ff6b6b 0%, #f03e3e 100%)",
+            textColor: "#ff6b6b",
+          },
+          {
+            label: "💵 Rendimento",
+            valor: rendimento,
+            bg: "linear-gradient(135deg, #ffd43b 0%, #ffb700 100%)",
+            textColor: "#f59f00",
+          },
         ].map((c, i) => (
-          <div key={i} style={{ background: c.bg, padding: '20px', borderRadius: '10px', borderLeft: `5px solid ${c.color}`, color: c.color, fontFamily: 'monospace' }}>
-            <div style={{ fontSize: '12px', marginBottom: '8px', opacity: 0.85 }}>{c.label}</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatarMoeda(c.valor)}</div>
+          <div
+            key={i}
+            className="card-appear"
+            style={{
+              background: c.bg,
+              color: "white",
+              padding: "26px",
+              borderRadius: "12px",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.1)",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-6px)";
+              e.currentTarget.style.boxShadow = "0 14px 35px rgba(0,0,0,0.15)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
+            }}
+          >
+            <div
+              style={{
+                fontSize: "13px",
+                marginBottom: "10px",
+                opacity: 0.9,
+                fontWeight: "600",
+              }}
+            >
+              {c.label}
+            </div>
+            <div
+              style={{
+                fontSize: "26px",
+                fontWeight: "800",
+                fontFamily: "monospace",
+                letterSpacing: "-1px",
+              }}
+            >
+              {formatarMoeda(c.valor)}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* SEÇÃO FIADOS */}
-      <div style={{ marginBottom: '40px' }} className="relatorio-section">
-        <h3 style={{ fontSize: '18px', marginBottom: '15px', fontWeight: 'bold', color: '#333', borderBottom: '2px solid #f59f00', paddingBottom: '8px' }}>🤝 Resumo de Fiados</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' }}>
-          <div style={{ background: '#fff3cd', padding: '18px', borderRadius: '10px', borderLeft: '5px solid #f59f00', color: '#856404', fontFamily: 'monospace' }}>
-            <div style={{ fontSize: '12px', marginBottom: '8px', fontWeight: '600' }}>⏳ Pendente a Receber</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatarMoeda(totalFiadoPendente)}</div>
-            <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>{fiadosPendentes.length} fiado(s)</div>
+      <div style={{ marginBottom: "45px" }} className="relatorio-section">
+        <h3
+          style={{
+            fontSize: "18px",
+            marginBottom: "20px",
+            fontWeight: "700",
+            color: "#1a1a1a",
+          }}
+        >
+          🤝 Resumo de Fiados
+        </h3>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            gap: "18px",
+            marginBottom: "25px",
+          }}
+        >
+          <div
+            className="card-appear"
+            style={{
+              background: "#fff3cd",
+              border: "2px solid #ffc107",
+              borderRadius: "12px",
+              padding: "22px",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.transform = "translateY(-4px)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.transform = "translateY(0)")
+            }
+          >
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#856404",
+                marginBottom: "10px",
+                fontWeight: "700",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              ⏳ Pendente
+            </div>
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "800",
+                color: "#856404",
+                fontFamily: "monospace",
+              }}
+            >
+              {formatarMoeda(totalFiadoPendente)}
+            </div>
+            <div
+              style={{
+                fontSize: "12px",
+                marginTop: "6px",
+                color: "#856404",
+                opacity: 0.75,
+              }}
+            >
+              {fiadosPendentes.length} fiado(s)
+            </div>
           </div>
-          <div style={{ background: '#d3f9d8', padding: '18px', borderRadius: '10px', borderLeft: '5px solid #51cf66', color: '#2f9e44', fontFamily: 'monospace' }}>
-            <div style={{ fontSize: '12px', marginBottom: '8px', fontWeight: '600' }}>✅ Já Recebido</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatarMoeda(totalFiadoPago)}</div>
-            <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>{fiadosPagos.length} fiado(s)</div>
+          <div
+            className="card-appear"
+            style={{
+              background: "#d3f9d8",
+              border: "2px solid #51cf66",
+              borderRadius: "12px",
+              padding: "22px",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.transform = "translateY(-4px)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.transform = "translateY(0)")
+            }
+          >
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#2f9e44",
+                marginBottom: "10px",
+                fontWeight: "700",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              ✅ Recebido
+            </div>
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "800",
+                color: "#2f9e44",
+                fontFamily: "monospace",
+              }}
+            >
+              {formatarMoeda(totalFiadoPago)}
+            </div>
+            <div
+              style={{
+                fontSize: "12px",
+                marginTop: "6px",
+                color: "#2f9e44",
+                opacity: 0.75,
+              }}
+            >
+              {fiadosPagos.length} fiado(s)
+            </div>
           </div>
-          <div style={{ background: '#e7f5ff', padding: '18px', borderRadius: '10px', borderLeft: '5px solid #339af0', color: '#1864ab', fontFamily: 'monospace' }}>
-            <div style={{ fontSize: '12px', marginBottom: '8px', fontWeight: '600' }}>📋 Total Geral Fiados</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{formatarMoeda(totalFiadoPendente + totalFiadoPago)}</div>
-            <div style={{ fontSize: '12px', marginTop: '4px', opacity: 0.8 }}>{fiados.length} fiado(s)</div>
+          <div
+            className="card-appear"
+            style={{
+              background: "#e7f5ff",
+              border: "2px solid #339af0",
+              borderRadius: "12px",
+              padding: "22px",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.transform = "translateY(-4px)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.transform = "translateY(0)")
+            }
+          >
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#1864ab",
+                marginBottom: "10px",
+                fontWeight: "700",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
+              📋 Total
+            </div>
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: "800",
+                color: "#1864ab",
+                fontFamily: "monospace",
+              }}
+            >
+              {fiados.length}
+            </div>
+            <div
+              style={{
+                fontSize: "12px",
+                marginTop: "6px",
+                color: "#1864ab",
+                opacity: 0.75,
+              }}
+            >
+              Total geral
+            </div>
           </div>
         </div>
 
         {fiadosPendentes.length > 0 && (
           <>
-            <h4 style={{ fontSize: '15px', marginBottom: '10px', color: '#856404' }}>⏳ Fiados Pendentes</h4>
-            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '300px', marginBottom: '20px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fffbf0' }}>
-                <thead style={{ position: 'sticky', top: 0 }}>
-                  <tr style={{ background: '#fff3cd', borderBottom: '2px solid #ffc107' }}>
-                    <th style={thStyle({ background: '#fff3cd', color: '#856404' })}>Cliente</th>
-                    <th style={thStyle({ background: '#fff3cd', color: '#856404' })}>Descrição</th>
-                    <th style={thStyle({ background: '#fff3cd', color: '#856404', textAlign: 'right' })}>Valor</th>
-                    <th style={thStyle({ background: '#fff3cd', color: '#856404' })}>Data</th>
+            <h4
+              style={{
+                fontSize: "14px",
+                marginBottom: "12px",
+                color: "#1a1a1a",
+                fontWeight: "700",
+              }}
+            >
+              ⏳ Fiados Pendentes
+            </h4>
+            <div
+              style={{
+                overflowX: "auto",
+                overflowY: "auto",
+                maxHeight: "320px",
+                marginBottom: "20px",
+                borderRadius: "10px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  background: "#fff",
+                }}
+              >
+                <thead style={{ position: "sticky", top: 0 }}>
+                  <tr
+                    style={{
+                      background: "#fff3cd",
+                      borderBottom: "2px solid #ffc107",
+                    }}
+                  >
+                    <th
+                      style={{
+                        ...thStyle,
+                        background: "#fff3cd",
+                        color: "#856404",
+                      }}
+                    >
+                      Cliente
+                    </th>
+                    <th
+                      style={{
+                        ...thStyle,
+                        background: "#fff3cd",
+                        color: "#856404",
+                      }}
+                    >
+                      Descrição
+                    </th>
+                    <th
+                      style={{
+                        ...thStyle,
+                        background: "#fff3cd",
+                        color: "#856404",
+                        textAlign: "right",
+                      }}
+                    >
+                      Valor
+                    </th>
+                    <th
+                      style={{
+                        ...thStyle,
+                        background: "#fff3cd",
+                        color: "#856404",
+                      }}
+                    >
+                      Data
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {fiadosPendentes.map((f, idx) => (
-                    <tr key={f.id} style={{ borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#ffffff' : '#fffbf0' }}>
-                      <td style={{ ...tdStyle(), fontWeight: '600' }}>{f.cliente}</td>
-                      <td style={tdStyle()}>{f.descricao}</td>
-                      <td style={{ ...tdStyle(), color: '#856404', fontWeight: 'bold', textAlign: 'right', fontFamily: 'monospace' }}>{formatarMoeda(Number(f.valor))}</td>
-                      <td style={{ ...tdStyle(), color: '#666' }}>{new Date(f.data_fiado).toLocaleDateString('pt-BR')}</td>
+                    <tr
+                      key={f.id}
+                      style={{
+                        borderBottom: "1px solid #f0f0f0",
+                        background: idx % 2 === 0 ? "#fff" : "#fafafa",
+                        transition: "background 0.2s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "#fffbf0")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background =
+                          idx % 2 === 0 ? "#fff" : "#fafafa")
+                      }
+                    >
+                      <td style={{ ...tdStyle, fontWeight: "600" }}>
+                        {f.cliente}
+                      </td>
+                      <td style={tdStyle}>{f.descricao}</td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          color: "#856404",
+                          fontWeight: "700",
+                          textAlign: "right",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {formatarMoeda(Number(f.valor))}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#888" }}>
+                        {new Date(f.data_fiado).toLocaleDateString("pt-BR")}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -241,103 +675,464 @@ function Relatorios() {
         )}
       </div>
 
-      {/* Entradas por categoria */}
-      <div style={{ marginBottom: '40px' }} className="relatorio-section">
-        <h3 style={{ fontSize: '16px', marginBottom: '15px', fontWeight: 'bold' }}>📥 Entradas por Categoria</h3>
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '300px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#f9f9f9' }}>
-            <thead style={{ position: 'sticky', top: 0 }}>
-              <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                <th style={thStyle()}>Categoria</th>
-                <th style={thStyle({ textAlign: 'right' })}>Qtd</th>
-                <th style={thStyle({ textAlign: 'right' })}>Total</th>
+      <div style={{ marginBottom: "45px" }} className="relatorio-section">
+        <h3
+          style={{
+            fontSize: "18px",
+            marginBottom: "15px",
+            fontWeight: "700",
+            color: "#1a1a1a",
+          }}
+        >
+          📥 Entradas por Categoria
+        </h3>
+        <div
+          style={{
+            overflowX: "auto",
+            overflowY: "auto",
+            maxHeight: "320px",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              background: "#fff",
+            }}
+          >
+            <thead style={{ position: "sticky", top: 0 }}>
+              <tr
+                style={{
+                  background: "#f0f2f5",
+                  borderBottom: "2px solid #ddd",
+                }}
+              >
+                <th style={thStyle}>Categoria</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Qtd</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {entradasPorCategoria.map(cat => (
-                <tr key={cat.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={tdStyle()}>{cat.nome}</td>
-                  <td style={{ ...tdStyle(), textAlign: 'right' }}>{cat.qtd}</td>
-                  <td style={{ ...tdStyle(), fontWeight: 'bold', color: '#2f9e44', textAlign: 'right', fontFamily: 'monospace' }}>{formatarMoeda(cat.total)}</td>
+              {entradasPorCategoria.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="3"
+                    style={{
+                      ...tdStyle,
+                      textAlign: "center",
+                      padding: "30px",
+                      color: "#999",
+                    }}
+                  >
+                    Nenhuma entrada registrada
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                entradasPorCategoria.map((cat, idx) => (
+                  <tr
+                    key={cat.id}
+                    style={{
+                      borderBottom: "1px solid #f0f0f0",
+                      background: idx % 2 === 0 ? "#fff" : "#fafafa",
+                    }}
+                  >
+                    <td style={tdStyle}>{cat.nome}</td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {cat.qtd}
+                    </td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontWeight: "700",
+                        color: "#2f9e44",
+                        textAlign: "right",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {formatarMoeda(cat.total)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Saídas por categoria */}
-      <div style={{ marginBottom: '40px' }} className="relatorio-section">
-        <h3 style={{ fontSize: '16px', marginBottom: '15px', fontWeight: 'bold' }}>📤 Saídas por Categoria</h3>
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '300px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#f9f9f9' }}>
-            <thead style={{ position: 'sticky', top: 0 }}>
-              <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                <th style={thStyle()}>Categoria</th>
-                <th style={thStyle({ textAlign: 'right' })}>Qtd</th>
-                <th style={thStyle({ textAlign: 'right' })}>Total</th>
+      <div style={{ marginBottom: "45px" }} className="relatorio-section">
+        <h3
+          style={{
+            fontSize: "18px",
+            marginBottom: "15px",
+            fontWeight: "700",
+            color: "#1a1a1a",
+          }}
+        >
+          📤 Saídas por Categoria
+        </h3>
+        <div
+          style={{
+            overflowX: "auto",
+            overflowY: "auto",
+            maxHeight: "320px",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              background: "#fff",
+            }}
+          >
+            <thead style={{ position: "sticky", top: 0 }}>
+              <tr
+                style={{
+                  background: "#f0f2f5",
+                  borderBottom: "2px solid #ddd",
+                }}
+              >
+                <th style={thStyle}>Categoria</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Qtd</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {saidasPorCategoria.map(cat => (
-                <tr key={cat.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={tdStyle()}>{cat.nome}</td>
-                  <td style={{ ...tdStyle(), textAlign: 'right' }}>{cat.qtd}</td>
-                  <td style={{ ...tdStyle(), fontWeight: 'bold', color: '#c92a2a', textAlign: 'right', fontFamily: 'monospace' }}>{formatarMoeda(cat.total)}</td>
+              {saidasPorCategoria.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="3"
+                    style={{
+                      ...tdStyle,
+                      textAlign: "center",
+                      padding: "30px",
+                      color: "#999",
+                    }}
+                  >
+                    Nenhuma saída registrada
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                saidasPorCategoria.map((cat, idx) => (
+                  <tr
+                    key={cat.id}
+                    style={{
+                      borderBottom: "1px solid #f0f0f0",
+                      background: idx % 2 === 0 ? "#fff" : "#fafafa",
+                    }}
+                  >
+                    <td style={tdStyle}>{cat.nome}</td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {cat.qtd}
+                    </td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontWeight: "700",
+                        color: "#ff6b6b",
+                        textAlign: "right",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {formatarMoeda(cat.total)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Todas as movimentações */}
       <div className="relatorio-section">
-        <h3 style={{ fontSize: '16px', marginBottom: '15px', fontWeight: 'bold' }}>📋 Todas as Movimentações</h3>
-        <div style={{ marginBottom: '15px', display: 'flex', gap: '10px' }} className="filtros-print">
-          {['todos', 'entrada', 'saida'].map(f => (
-            <button key={f}
-              onClick={() => setFiltroTipo(f)}
-              style={{ padding: '10px 20px', background: filtroTipo === f ? '#667eea' : '#ffffff', color: filtroTipo === f ? 'white' : '#333', border: filtroTipo === f ? 'none' : '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}>
-              {f === 'todos' ? 'Todos' : f === 'entrada' ? '📥 Entradas' : '📤 Saídas'}
+        <h3
+          style={{
+            fontSize: "18px",
+            marginBottom: "15px",
+            fontWeight: "700",
+            color: "#1a1a1a",
+          }}
+        >
+          📋 Todas as Movimentações
+        </h3>
+
+        <div
+          style={{
+            marginBottom: "20px",
+            padding: "20px",
+            background: "#fff",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            display: "flex",
+            gap: "15px",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+          }}
+          className="filtros-print"
+        >
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "6px",
+                fontWeight: "600",
+                fontSize: "13px",
+                color: "#556575",
+              }}
+            >
+              🔍 Pesquisar por Data
+            </label>
+            <input
+              type="date"
+              value={dataFiltro}
+              onChange={(e) => setDataFiltro(e.target.value)}
+              style={{
+                padding: "10px 14px",
+                border: "1.5px solid #ddd",
+                borderRadius: "8px",
+                fontSize: "14px",
+                boxSizing: "border-box",
+              }}
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "6px",
+                fontWeight: "600",
+                fontSize: "13px",
+                color: "#556575",
+              }}
+            >
+              Categoria
+            </label>
+            <select
+              value={categoriaFiltro}
+              onChange={(e) => setCategoriaFiltro(e.target.value)}
+              style={{
+                padding: "10px 14px",
+                border: "1.5px solid #ddd",
+                borderRadius: "8px",
+                fontSize: "14px",
+                boxSizing: "border-box",
+                minWidth: "180px",
+              }}
+            >
+              <option value="">Todas</option>
+              {categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.tipo === "entrada" ? "📥" : "📤"} {c.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px" }}>
+            {["todos", "entrada", "saida"].map((f) => (
+              <button
+                key={f}
+                onClick={() => setFiltroTipo(f)}
+                className="btn-hover"
+                style={{
+                  padding: "10px 18px",
+                  background: filtroTipo === f ? "#667eea" : "#f0f2f5",
+                  color: filtroTipo === f ? "white" : "#556575",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontWeight: "600",
+                  fontSize: "13px",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {f === "todos"
+                  ? "Todos"
+                  : f === "entrada"
+                    ? "📥 Entradas"
+                    : "📤 Saídas"}
+              </button>
+            ))}
+          </div>
+
+          {(dataFiltro || categoriaFiltro || filtroTipo !== "todos") && (
+            <button
+              onClick={limparFiltros}
+              className="btn-hover"
+              style={{
+                padding: "10px 18px",
+                background: "#ff6b6b",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: "600",
+                fontSize: "13px",
+              }}
+            >
+              ✖️ Limpar filtros
             </button>
-          ))}
+          )}
+
+          {dataFiltro && (
+            <div
+              style={{
+                marginLeft: "auto",
+                fontSize: "13px",
+                color: "#556575",
+                fontWeight: "600",
+                padding: "10px 0",
+              }}
+            >
+              {transacoesFiltradas.length} resultado(s) em{" "}
+              {new Date(dataFiltro + "T00:00:00").toLocaleDateString("pt-BR")}
+            </div>
+          )}
         </div>
 
-        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#f9f9f9' }}>
-            <thead style={{ position: 'sticky', top: 0 }}>
-              <tr style={{ background: '#f5f5f5', borderBottom: '2px solid #ddd' }}>
-                <th style={thStyle()}>Tipo</th>
-                <th style={thStyle()}>Descrição</th>
-                <th style={thStyle()}>Categoria</th>
-                <th style={thStyle({ textAlign: 'right' })}>Valor</th>
-                <th style={thStyle({ textAlign: 'right' })}>Saldo após</th>
-                <th onClick={() => setOrdenacao(o => o === 'desc' ? 'asc' : 'desc')}
-                  style={{ ...thStyle(), cursor: 'pointer', userSelect: 'none' }}>
-                  Data {ordenacao === 'desc' ? '↓' : '↑'}
+        <div
+          style={{
+            overflowX: "auto",
+            overflowY: "auto",
+            maxHeight: "420px",
+            borderRadius: "10px",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+          }}
+        >
+          <table
+            style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              background: "#fff",
+            }}
+          >
+            <thead style={{ position: "sticky", top: 0 }}>
+              <tr
+                style={{
+                  background: "#f0f2f5",
+                  borderBottom: "2px solid #ddd",
+                }}
+              >
+                <th style={thStyle}>Tipo</th>
+                <th style={thStyle}>Descrição</th>
+                <th style={thStyle}>Categoria</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Valor</th>
+                <th style={{ ...thStyle, textAlign: "right" }}>Saldo</th>
+                <th
+                  onClick={() =>
+                    setOrdenacao((o) => (o === "desc" ? "asc" : "desc"))
+                  }
+                  style={{ ...thStyle, cursor: "pointer", userSelect: "none" }}
+                >
+                  Data {ordenacao === "desc" ? "↓" : "↑"}
                 </th>
               </tr>
             </thead>
             <tbody>
               {transacoesFiltradas.length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#999' }}>Nenhuma movimentação registrada</td></tr>
-              ) : transacoesFiltradas.map((t, idx) => (
-                <tr key={t.id} style={{ borderBottom: '1px solid #eee', background: idx % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
-                  <td style={tdStyle()}>
-                    <span style={{ background: t.tipo === 'entrada' ? '#d3f9d8' : '#ffe0e0', color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a', padding: '4px 10px', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px' }}>
-                      {t.tipo === 'entrada' ? '📥 Entrada' : '📤 Saída'}
-                    </span>
+                <tr>
+                  <td
+                    colSpan="6"
+                    style={{
+                      ...tdStyle,
+                      textAlign: "center",
+                      padding: "40px",
+                      color: "#999",
+                    }}
+                  >
+                    {dataFiltro
+                      ? "Nenhuma movimentação encontrada nesta data"
+                      : "Nenhuma movimentação"}
                   </td>
-                  <td style={tdStyle()}>{t.descricao}</td>
-                  <td style={{ ...tdStyle(), color: '#667eea' }}>{t.categorias?.nome || '—'}</td>
-                  <td style={{ ...tdStyle(), fontWeight: 'bold', color: t.tipo === 'entrada' ? '#2f9e44' : '#c92a2a', textAlign: 'right', fontFamily: 'monospace' }}>
-                    {t.tipo === 'entrada' ? '+' : '-'} {formatarMoeda(Math.abs(Number(t.valor)))}
-                  </td>
-                  <td style={{ ...tdStyle(), textAlign: 'right', fontFamily: 'monospace', color: '#555' }}>{formatarMoeda(Number(t.saldo_apos || 0))}</td>
-                  <td style={{ ...tdStyle(), color: '#666' }}>{new Date(t.data_transacao).toLocaleDateString('pt-BR')}</td>
                 </tr>
-              ))}
+              ) : (
+                transacoesFiltradas.map((t, idx) => (
+                  <tr
+                    key={t.id}
+                    style={{
+                      borderBottom: "1px solid #f0f0f0",
+                      background: idx % 2 === 0 ? "#fff" : "#fafafa",
+                      transition: "background 0.2s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "#f8f9ff")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background =
+                        idx % 2 === 0 ? "#fff" : "#fafafa")
+                    }
+                  >
+                    <td style={tdStyle}>
+                      <span
+                        style={{
+                          background:
+                            t.tipo === "entrada" ? "#d3f9d8" : "#ffe0e0",
+                          color: t.tipo === "entrada" ? "#2f9e44" : "#ff6b6b",
+                          padding: "5px 10px",
+                          borderRadius: "6px",
+                          fontWeight: "700",
+                          fontSize: "11px",
+                          display: "inline-block",
+                        }}
+                      >
+                        {t.tipo === "entrada" ? "📥 IN" : "📤 OUT"}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>{t.descricao}</td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        color: "#667eea",
+                        fontWeight: "500",
+                      }}
+                    >
+                      {t.categorias?.nome || "—"}
+                    </td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        fontWeight: "700",
+                        color: t.tipo === "entrada" ? "#2f9e44" : "#ff6b6b",
+                        textAlign: "right",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {t.tipo === "entrada" ? "+" : "-"}
+                      {formatarMoeda(Math.abs(Number(t.valor)))}
+                    </td>
+                    <td
+                      style={{
+                        ...tdStyle,
+                        textAlign: "right",
+                        fontFamily: "monospace",
+                        color: "#556575",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {formatarMoeda(Number(t.saldo_apos || 0))}
+                    </td>
+                    <td style={{ ...tdStyle, color: "#888" }}>
+                      {new Date(t.data_transacao).toLocaleDateString("pt-BR")}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

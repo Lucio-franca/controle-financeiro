@@ -1,3 +1,4 @@
+// Categorias.jsx
 import React, { useState, useEffect } from 'react';
 import { getCategorias, criarCategoria, atualizarCategoria, deletarCategoria } from '../supabaseClient';
 
@@ -70,59 +71,69 @@ function Categorias() {
   const saidas = categorias.filter(c => c.tipo === 'saida');
 
   return (
-    <div style={{ background: 'white', padding: '30px', borderRadius: '8px' }}>
-      <h2 style={{ fontSize: '24px', marginTop: 0, marginBottom: '25px' }}>🏷️ Categorias</h2>
+    <div style={{ background: 'white', padding: '30px', borderRadius: '14px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
+      <style>{`
+        @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 500px; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .form-appear { animation: slideDown 0.3s ease-out; }
+        .row-appear { animation: fadeIn 0.3s ease-out; }
+        .btn-hover { transition: all 0.2s ease; }
+        .btn-hover:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+      `}</style>
+
+      <h2 style={{ fontSize: '24px', marginTop: 0, marginBottom: '25px', fontWeight: '700', color: '#333' }}>🏷️ Categorias</h2>
 
       <button
         onClick={() => { setMostraForm(!mostraForm); setEditando(null); setFormData({ nome: '', tipo: 'entrada' }); }}
-        style={{ padding: '14px 32px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', marginBottom: '30px', fontSize: '16px', fontWeight: 'bold' }}
+        className="btn-hover"
+        style={{ padding: '12px 28px', background: '#667eea', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', marginBottom: '30px', fontSize: '16px', fontWeight: '600' }}
       >
         ➕ Nova Categoria
       </button>
 
       {mostraForm && (
-        <form onSubmit={handleSubmit} style={{ marginBottom: '30px', padding: '25px', background: '#f9f9f9', borderRadius: '8px' }}>
+        <form onSubmit={handleSubmit} className="form-appear" style={{ marginBottom: '30px', padding: '25px', background: '#f8f9fa', borderRadius: '10px', border: '1px solid #e9ecef' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '18px', marginBottom: '18px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Nome</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px', color: '#333' }}>Nome</label>
               <input type="text" name="nome" value={formData.nome} onChange={handleChange}
-                placeholder="Ex: Vendas, Estoque, Aluguel..."
-                style={{ width: '100%', padding: '10px', border: erros.nome ? '2px solid #c92a2a' : '1px solid #ddd', borderRadius: '6px', fontSize: '16px' }} />
-              {erros.nome && <small style={{ color: '#c92a2a' }}>{erros.nome}</small>}
+                placeholder="Ex: Vendas, Estoque..."
+                style={{ width: '100%', padding: '11px 14px', border: erros.nome ? '2px solid #ff6b6b' : '1.5px solid #ddd', borderRadius: '8px', fontSize: '15px', transition: 'all 0.2s', boxSizing: 'border-box' }} />
+              {erros.nome && <small style={{ color: '#ff6b6b', marginTop: '4px', display: 'block' }}>{erros.nome}</small>}
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Tipo</label>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '14px', color: '#333' }}>Tipo</label>
               <select name="tipo" value={formData.tipo} onChange={handleChange}
-                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', fontSize: '16px' }}>
-                <option value="entrada">📥 Entrada (receita)</option>
-                <option value="saida">📤 Saída (despesa)</option>
+                style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '15px', transition: 'all 0.2s', boxSizing: 'border-box' }}>
+                <option value="entrada">📥 Entrada</option>
+                <option value="saida">📤 Saída</option>
               </select>
             </div>
           </div>
-          <button type="submit" style={{ padding: '12px 28px', background: '#667eea', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', marginRight: '12px', fontSize: '16px', fontWeight: 'bold' }}>💾 Salvar</button>
-          <button type="button" onClick={() => { setMostraForm(false); setErros({}); }} style={{ padding: '12px 28px', background: '#999', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}>❌ Cancelar</button>
+          <button type="submit" className="btn-hover" style={{ padding: '11px 24px', background: '#667eea', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', marginRight: '10px', fontSize: '15px', fontWeight: '600' }}>💾 Salvar</button>
+          <button type="button" onClick={() => { setMostraForm(false); setErros({}); }} className="btn-hover" style={{ padding: '11px 24px', background: '#aaa', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: '600' }}>❌ Cancelar</button>
         </form>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
         <div>
-          <h3 style={{ color: '#2f9e44', marginBottom: '15px' }}>📥 Categorias de Entrada</h3>
+          <h3 style={{ color: '#2f9e44', marginBottom: '15px', fontSize: '16px', fontWeight: '600' }}>📥 Entradas</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: '#d3f9d8', borderBottom: '2px solid #2f9e44' }}>
               <tr>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Nome</th>
-                <th style={{ padding: '12px', textAlign: 'center' }}>Ações</th>
+                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '14px' }}>Nome</th>
+                <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', fontSize: '14px' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {entradas.length === 0 ? (
-                <tr><td colSpan="2" style={{ padding: '12px', textAlign: 'center', color: '#999' }}>Nenhuma categoria</td></tr>
+                <tr><td colSpan="2" style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '14px' }}>Nenhuma categoria</td></tr>
               ) : entradas.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '12px' }}>{c.nome}</td>
+                <tr key={c.id} className="row-appear" style={{ borderBottom: '1px solid #eee', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <td style={{ padding: '12px', fontSize: '14px' }}>{c.nome}</td>
                   <td style={{ padding: '12px', textAlign: 'center' }}>
-                    <button onClick={() => handleEditar(c)} style={{ background: '#667eea', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', marginRight: '6px' }}>✏️</button>
-                    <button onClick={() => handleDeletar(c.id)} style={{ background: '#ff6b6b', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer' }}>🗑️</button>
+                    <button onClick={() => handleEditar(c)} className="btn-hover" style={{ background: '#667eea', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', marginRight: '6px', fontSize: '14px' }}>✏️</button>
+                    <button onClick={() => handleDeletar(c.id)} className="btn-hover" style={{ background: '#ff6b6b', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>🗑️</button>
                   </td>
                 </tr>
               ))}
@@ -131,23 +142,23 @@ function Categorias() {
         </div>
 
         <div>
-          <h3 style={{ color: '#c92a2a', marginBottom: '15px' }}>📤 Categorias de Saída</h3>
+          <h3 style={{ color: '#c92a2a', marginBottom: '15px', fontSize: '16px', fontWeight: '600' }}>📤 Saídas</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead style={{ background: '#ffe0e0', borderBottom: '2px solid #c92a2a' }}>
               <tr>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Nome</th>
-                <th style={{ padding: '12px', textAlign: 'center' }}>Ações</th>
+                <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600', fontSize: '14px' }}>Nome</th>
+                <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600', fontSize: '14px' }}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {saidas.length === 0 ? (
-                <tr><td colSpan="2" style={{ padding: '12px', textAlign: 'center', color: '#999' }}>Nenhuma categoria</td></tr>
+                <tr><td colSpan="2" style={{ padding: '20px', textAlign: 'center', color: '#999', fontSize: '14px' }}>Nenhuma categoria</td></tr>
               ) : saidas.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '12px' }}>{c.nome}</td>
+                <tr key={c.id} className="row-appear" style={{ borderBottom: '1px solid #eee', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f9f9f9'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <td style={{ padding: '12px', fontSize: '14px' }}>{c.nome}</td>
                   <td style={{ padding: '12px', textAlign: 'center' }}>
-                    <button onClick={() => handleEditar(c)} style={{ background: '#667eea', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer', marginRight: '6px' }}>✏️</button>
-                    <button onClick={() => handleDeletar(c.id)} style={{ background: '#ff6b6b', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer' }}>🗑️</button>
+                    <button onClick={() => handleEditar(c)} className="btn-hover" style={{ background: '#667eea', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', marginRight: '6px', fontSize: '14px' }}>✏️</button>
+                    <button onClick={() => handleDeletar(c.id)} className="btn-hover" style={{ background: '#ff6b6b', color: 'white', border: 'none', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>🗑️</button>
                   </td>
                 </tr>
               ))}
